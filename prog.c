@@ -2,76 +2,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include "taskQueue.h"
+#include "threadQueue.h"
+#include "threadPool.h"
 
 pthread_mutex_t mutex;
+pthread_cond_t cond;
 
-typedef struct {
-    int pid;
-    int ms;
-} task_descr_t;
-
-typedef struct {
-    task_descr_t* next;
-    task_descr_t* current;
-} node_t;
-
-typedef struct {
-    node_t* head;
-    node_t* tail;
-    int size;
-} queue_t;
-
-queue_t* queue_init(){
-    queue_t* queue = malloc(sizeof(queue_t));
-    queue->size = 0;
-    queue->head = NULL;
-    queue->tail = NULL;
-
-    return queue;
-}
-
-void push(queue_t* queue, task_descr_t* item){
-    pthread_mutex_lock(&mutex);
-    node_t* node = malloc(sizeof(node_t));
-    node->current = item;
-    node->next = NULL;
-    if(queue->head == NULL && queue->tail == NULL){
-        queue->head = node;
-        queue->tail = node;
-        queue->size = 1;
-    } else {
-        queue->tail->next = node;
-        queue->tail = node;
-        queue->size++;
-    }
-    pthread_mutex_unlock(&mutex);
-}
-
-void* pop(queue_t* queue){
-    pthread_mutex_lock(&mutex);
-
-    if(queue->size == 0) {
-        pthread_mutex_unlock(&mutex);
-        return NULL;
-    }
-
-    task_descr_t* value = queue->head->current;
-    node_t* temp = queue->head;
-    queue->head = queue->head->next;
-    queue->size--;
-    free(temp);
-
-    pthread_mutex_unlock(&mutex);
-
-    return value;
-}
+#define true 1
+#define false 0
 
 void processa(task_descr_t* tp)
 {
     struct timespec zzz;
 
-    zzz.tv_sec = 0;
-    zzz.tv_nsec = tp->ms * 1000000L; // 0 <= ms <= 999
+    zzz.tv_sec  = tp->ms/1000;
+    zzz.tv_nsec = (tp->ms%1000) * 1000000L;
 
     printf("IP #%d\n", tp->pid);
     nanosleep(&zzz,NULL);
@@ -80,10 +26,31 @@ void processa(task_descr_t* tp)
 
 int main(int argc, char *argv[])
 {
-    queue_t* queue = queue_init();
+    task_queue_t* task_queue = task_queue_init();
     int min_threads = argv[0];
     int max_threads = argv[1];
-    while(1){
+    thread_pool_t* thread_pool = thread_pool_init(min_threads, max_threads);
 
+    // read task description inputs
+    while(true){
+        int pid, ms;
+        scanf("%d %d", &pid, &ms);
+        if(pid == EOF){
+            break;
+        } else {
+            task_descr_t task = {
+                .pid = pid,
+                .ms = ms
+            };
+            task_push(task_queue, task, &mutex);
+            printf("task: %d %d\n", task.pid, task.ms);
+        }
+    }
+    printf("Outside push loop\n");
+    task_queue_print(task_queue);
+    while(!task_queue_empty(task_queue)){
+        task_descr_t task = task_pop(task_queue, &mutex);
+        printf("Found: %d %d\n", task.pid, task.ms);
+        processa(&task);
     }
 }
