@@ -43,14 +43,11 @@ int main(int argc, char *argv[])
                 .ms = ms
             };
             task_push(task_queue, task, &mutex);
-            printf("task: %d %d\n", task.pid, task.ms);
         }
     }
-    printf("Outside push loop\n");
-    task_queue_print(task_queue);
+
     while(!task_queue_empty(task_queue)){
         task_descr_t task = task_pop(task_queue, &mutex);
-        printf("Found: %d %d\n", task.pid, task.ms);
         processa(&task);
     }
 }
