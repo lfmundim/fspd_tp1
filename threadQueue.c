@@ -3,7 +3,7 @@
 #include<pthread.h>
 #include "threadQueue.h"
 
-void push(thread_queue_t* queue, pthread_t* thread, pthread_mutex_t* mutex){
+void thread_push(thread_queue_t* queue, pthread_t* thread, pthread_mutex_t* mutex){
     pthread_mutex_lock(mutex);
     thread_node_t* node = malloc(sizeof(thread_node_t));
     node->current = thread;
@@ -23,7 +23,7 @@ void push(thread_queue_t* queue, pthread_t* thread, pthread_mutex_t* mutex){
     pthread_mutex_unlock(mutex);
 }
 
-void* pop(thread_queue_t* queue, pthread_mutex_t* mutex){
+pthread_t* thread_pop(thread_queue_t* queue, pthread_mutex_t* mutex){
     pthread_mutex_lock(mutex);
 
     if(queue->size == 0){

@@ -16,9 +16,9 @@ typedef struct {
     int size;
 } thread_queue_t;
 
-void push(thread_queue_t* queue, pthread_t* thread, pthread_mutex_t* mutex);
+void thread_push(thread_queue_t* queue, pthread_t* thread, pthread_mutex_t* mutex);
 
-void* pop(thread_queue_t* queue, pthread_mutex_t* mutex);
+pthread_t* thread_pop(thread_queue_t* queue, pthread_mutex_t* mutex);
 
 thread_queue_t* thread_queue_init();
 
