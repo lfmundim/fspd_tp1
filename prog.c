@@ -43,7 +43,7 @@ void push(task_descr_t task){
     task_queue[task_count] = task;
     task_count++;
     pthread_mutex_unlock(&mutex_queue);
-    pthread_cond_broadcast(&cond_queue);
+    pthread_cond_signal(&cond_queue);
 }
 
 task_descr_t pop(){
@@ -77,7 +77,6 @@ void* start_thread(){
 
     while(true){
         // espera novas tarefas
-        // cond wait
         pthread_mutex_lock(&mutex_queue);
         while(task_count == 0){
             pthread_cond_wait(&cond_queue, &mutex_queue);
@@ -108,7 +107,6 @@ void* start_thread(){
             printf("TE %d\n", tid);
             pthread_exit(NULL);
         }
-        pthread_mutex_lock(&mutex_queue);
         pthread_mutex_unlock(&mutex_queue);
     }
 }
@@ -120,9 +118,9 @@ void fill_in_EOW(){
         .pid = 0
     };
     for(i = 0; i<max_threads; i++){
-        task_count++;
-        task_queue[task_count+i] = eow;
+        push(eow);
     }
+    pthread_cond_broadcast(&cond_queue);
 }
 
 int main(int argc, char *argv[])
