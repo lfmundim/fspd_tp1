@@ -38,12 +38,30 @@ int is_eow(task_descr_t task){
     return task.ms == 0 && task.pid == 0;
 }
 
+void push(task_descr_t task){
+    pthread_mutex_lock(&mutex_queue);
+    task_queue[task_count] = task;
+    task_count++;
+    pthread_mutex_unlock(&mutex_queue);
+    pthread_cond_broadcast(&cond_queue);
+}
+
 task_descr_t pop(){
+    if(task_count == 0){
+        task_descr_t empty = {
+            .ms = -1,
+            .pid = -1
+        };
+        return empty;
+    }
+
     task_descr_t task = task_queue[0];
+
     for(int i = 0; i<task_count-1; i++){
         task_queue[i] = task_queue[i+1];
     }
     task_count--;
+    pthread_mutex_unlock(&mutex_queue);
 
     return task;
 }
@@ -58,9 +76,14 @@ void* start_thread(){
     printf("TB %d\n", tid);
 
     while(true){
+        // espera novas tarefas
+        // cond wait
+        pthread_mutex_lock(&mutex_queue);
+        while(task_count == 0){
+            pthread_cond_wait(&cond_queue, &mutex_queue);
+        }
         // retira descritor de tarefas
         task_descr_t task;
-        pthread_mutex_lock(&mutex_queue);
         task = pop();
 
         // se descritor de tarefas é EOW, termina execucao
@@ -72,22 +95,21 @@ void* start_thread(){
             pthread_exit(NULL);
         }
         pthread_mutex_unlock(&mutex_queue);
-
-        processa(&task);
+        if(task.pid > 0){
+            processa(&task);
+        }
 
         pthread_mutex_lock(&mutex_queue);
         // se ja ha pelo menos min_threads, termina
-        if(task_count < thread_count && thread_count > min_threads) {
+        if(thread_count > min_threads) {
             thread_count--;
             pthread_mutex_unlock(&mutex_queue);
             // anuncia fim da thread
             printf("TE %d\n", tid);
             pthread_exit(NULL);
         }
+        pthread_mutex_lock(&mutex_queue);
         pthread_mutex_unlock(&mutex_queue);
-        // espera novas tarefas
-        // cond wait
-        pthread_cond_wait(&cond_queue, &mutex_queue);
     }
 }
 
@@ -109,6 +131,7 @@ int main(int argc, char *argv[])
     max_threads = atoi(argv[argc-1]);
     curr_tid = 1;
     task_count = 0;
+    thread_count = 0;
 
     pthread_mutex_init(&mutex_queue, NULL);
     pthread_mutex_init(&mutex_tid, NULL);
@@ -118,9 +141,13 @@ int main(int argc, char *argv[])
 
     // cria threadpool
     pthread_t threads[max_threads];
+    int j;
+    for(j = 0; j<min_threads; j++){
+        thread_count++;
+        pthread_create(&threads[j], &attr, &start_thread, NULL);
+    }
 
     // le as task descriptions
-    int i = 0;
     while(true){
         int pid, ms;
         scanf("%d %d", &pid, &ms);
@@ -133,15 +160,14 @@ int main(int argc, char *argv[])
                 .pid = pid,
                 .ms = ms
             };
-            task_queue[i++] = task;
-            task_count++;
+            push(task);
+            if(thread_count<max_threads){
+                pthread_mutex_lock(&mutex_queue);
+                thread_count++;
+                pthread_mutex_unlock(&mutex_queue);
+                pthread_create(&threads[j++], &attr, &start_thread, NULL);
+            }
         }
-    }
-
-    int j;
-    for(j = 0; j<max_threads; j++){
-        thread_count++;
-        pthread_create(&threads[j], &attr, &start_thread, NULL);
     }
 
     pthread_mutex_destroy(&mutex_queue);
