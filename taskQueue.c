@@ -10,6 +10,7 @@ task_queue_t* task_queue_init(){
 }
 
 int task_queue_empty(task_queue_t* queue){
+    printf("Size %d\n", queue->size);
     return queue->size == 0;
 }
 
@@ -26,13 +27,12 @@ void task_push(task_queue_t* queue, task_descr_t item, pthread_mutex_t* mutex){
     queue->tail = node;
     queue->size++;
     pthread_mutex_unlock(mutex);
-    task_queue_print(queue);
 }
 
 task_descr_t task_pop(task_queue_t* queue, pthread_mutex_t* mutex){
     pthread_mutex_lock(mutex);
 
-    if(queue->size == 0) {
+    if(task_queue_empty(queue)) {
         pthread_mutex_unlock(mutex);
         task_descr_t EOW = {
             .pid = -1,

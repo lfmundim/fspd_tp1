@@ -3,6 +3,11 @@
 #include<pthread.h>
 #include "threadQueue.h"
 
+int thread_queue_empty(thread_queue_t* queue){
+    printf("Size %d\n", queue->size);
+    return queue->size == 0;
+}
+
 void thread_push(thread_queue_t* queue, pthread_t* thread, pthread_mutex_t* mutex){
     pthread_mutex_lock(mutex);
     thread_node_t* node = malloc(sizeof(thread_node_t));
@@ -26,7 +31,7 @@ void thread_push(thread_queue_t* queue, pthread_t* thread, pthread_mutex_t* mute
 pthread_t* thread_pop(thread_queue_t* queue, pthread_mutex_t* mutex){
     pthread_mutex_lock(mutex);
 
-    if(queue->size == 0){
+    if(thread_queue_empty(queue)){
         // nothing to pop, returning
         pthread_mutex_unlock(mutex);
         return NULL;
